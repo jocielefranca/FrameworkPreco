@@ -1,0 +1,999 @@
+import React, { useState, useEffect } from 'react';
+import { ChevronRight, ChevronLeft, Calculator, TrendingUp, Users, MapPin, DollarSign, Target, BarChart3, CheckCircle, AlertTriangle, Info } from 'lucide-react';
+
+const MCMVPricingFramework = () => {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [formData, setFormData] = useState({
+    // Análise de Demanda
+    populacaoTotal: '',
+    taxaCrescimento: '',
+    migracaoInterna: '',
+    familiasFaixa1: '',
+    familiasFaixa2: '',
+    familiasFaixa3: '',
+    deficitHabitacional: '',
+    
+    // Análise Competitiva
+    concorrentes: [],
+    
+    // Análise Financeira
+    custoTerreno: '',
+    custoConstrucao: '',
+    custosIndiretos: '',
+    margemDesejada: '',
+    
+    // Pesquisa de Mercado
+    precoIdeal: '',
+    precoMaximo: '',
+    precoSuspeito: '',
+    
+    // Estratégia
+    estrategia: '',
+    vsoMeta: ''
+  });
+
+  const [results, setResults] = useState({
+    som: 0,
+    precoMinimo: 0,
+    precoSugerido: 0,
+    vsoProjetada: 0,
+    margemFinal: 0
+  });
+
+  const steps = [
+    {
+      id: 'demanda',
+      title: 'Análise de Demanda',
+      icon: Users,
+      description: 'Calcular TAM/SAM/SOM do mercado'
+    },
+    {
+      id: 'competitiva',
+      title: 'Análise Competitiva',
+      icon: TrendingUp,
+      description: 'Mapear concorrência e posicionamento'
+    },
+    {
+      id: 'financeira',
+      title: 'Análise Financeira',
+      icon: Calculator,
+      description: 'Calcular custos e margem mínima'
+    },
+    {
+      id: 'pesquisa',
+      title: 'Pesquisa de Mercado',
+      icon: Target,
+      description: 'Validar intenção de compra'
+    },
+    {
+      id: 'estrategia',
+      title: 'Estratégia de Preço',
+      icon: DollarSign,
+      description: 'Definir abordagem de precificação'
+    },
+    {
+      id: 'resultados',
+      title: 'Resultados',
+      icon: BarChart3,
+      description: 'Análise final e recomendações'
+    }
+  ];
+
+  const updateFormData = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const addConcorrente = () => {
+    const newConcorrente = {
+      nome: '',
+      preco: '',
+      metragem: '',
+      localizacao: '',
+      diferencial: '',
+      vso: ''
+    };
+    setFormData(prev => ({
+      ...prev,
+      concorrentes: [...prev.concorrentes, newConcorrente]
+    }));
+  };
+
+  const updateConcorrente = (index, field, value) => {
+    const newConcorrentes = [...formData.concorrentes];
+    newConcorrentes[index][field] = value;
+    setFormData(prev => ({ ...prev, concorrentes: newConcorrentes }));
+  };
+
+  const removeConcorrente = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      concorrentes: prev.concorrentes.filter((_, i) => i !== index)
+    }));
+  };
+
+  const calculateResults = () => {
+    const populacao = parseFloat(formData.populacaoTotal) || 0;
+    const numFamilias = populacao / 3.2;
+    const familiasFaixa = (parseFloat(formData.familiasFaixa1) || 0) + 
+                         (parseFloat(formData.familiasFaixa2) || 0) + 
+                         (parseFloat(formData.familiasFaixa3) || 0);
+    
+    // SOM Calculation
+    const som = (familiasFaixa * 0.3 * 0.15) / 24; // 30% elegíveis, 15% penetração, 24 meses
+    
+    // Preço Mínimo
+    const custoTotal = (parseFloat(formData.custoTerreno) || 0) + 
+                      (parseFloat(formData.custoConstrucao) || 0) + 
+                      (parseFloat(formData.custosIndiretos) || 0);
+    const margemMin = parseFloat(formData.margemDesejada) || 25;
+    const precoMinimo = custoTotal * (1 + margemMin/100) * 1.1; // 10% margem segurança
+    
+    // Preço Sugerido baseado na estratégia
+    let precoSugerido = precoMinimo;
+    const precoMedio = formData.concorrentes.reduce((acc, comp) => 
+      acc + (parseFloat(comp.preco) || 0), 0) / (formData.concorrentes.length || 1);
+    
+    switch(formData.estrategia) {
+      case 'valor':
+        precoSugerido = Math.max(precoMinimo, precoMedio * 1.1);
+        break;
+      case 'competitiva':
+        precoSugerido = Math.max(precoMinimo, precoMedio);
+        break;
+      case 'penetracao':
+        precoSugerido = Math.max(precoMinimo, precoMedio * 0.95);
+        break;
+      default:
+        precoSugerido = precoMinimo;
+    }
+    
+    // VSO Projetada
+    const vsoBase = parseFloat(formData.vsoMeta) || 2.5;
+    const ajustePreco = precoSugerido < precoMedio ? 1.3 : (precoSugerido > precoMedio * 1.1 ? 0.8 : 1);
+    const vsoProjetada = vsoBase * ajustePreco;
+    
+    // Margem Final
+    const margemFinal = ((precoSugerido - custoTotal) / precoSugerido) * 100;
+    
+    setResults({
+      som: Math.round(som),
+      precoMinimo: Math.round(precoMinimo),
+      precoSugerido: Math.round(precoSugerido),
+      vsoProjetada: parseFloat(vsoProjetada.toFixed(2)),
+      margemFinal: parseFloat(margemFinal.toFixed(1))
+    });
+  };
+
+  useEffect(() => {
+    calculateResults();
+  }, [formData]);
+
+  const renderStep = () => {
+    switch(steps[currentStep].id) {
+      case 'demanda':
+        return (
+          <div className="space-y-6">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="flex items-start space-x-3">
+                <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-blue-900">Dados Demográficos</h4>
+                  <p className="text-sm text-blue-700">Colete dados do IBGE, Receita Federal e órgãos locais</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium mb-2">População Total da Cidade</label>
+                <input
+                  type="number"
+                  value={formData.populacaoTotal}
+                  onChange={(e) => updateFormData('populacaoTotal', e.target.value)}
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: 150000"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Taxa Crescimento Anual (%)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={formData.taxaCrescimento}
+                  onChange={(e) => updateFormData('taxaCrescimento', e.target.value)}
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: 2.5"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Migração Interna (pessoas/ano)</label>
+                <input
+                  type="number"
+                  value={formData.migracaoInterna}
+                  onChange={(e) => updateFormData('migracaoInterna', e.target.value)}
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: 2000"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Déficit Habitacional (%)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={formData.deficitHabitacional}
+                  onChange={(e) => updateFormData('deficitHabitacional', e.target.value)}
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: 12.5"
+                />
+              </div>
+            </div>
+            
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-medium mb-3">Distribuição de Famílias MCMV</h4>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Faixa 1 (até R$ 2.640)</label>
+                  <input
+                    type="number"
+                    value={formData.familiasFaixa1}
+                    onChange={(e) => updateFormData('familiasFaixa1', e.target.value)}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nº famílias"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Faixa 2 (R$ 2.640-4.400)</label>
+                  <input
+                    type="number"
+                    value={formData.familiasFaixa2}
+                    onChange={(e) => updateFormData('familiasFaixa2', e.target.value)}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nº famílias"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Faixa 3 (R$ 4.400-8.000)</label>
+                  <input
+                    type="number"
+                    value={formData.familiasFaixa3}
+                    onChange={(e) => updateFormData('familiasFaixa3', e.target.value)}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nº famílias"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {formData.populacaoTotal && (
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h4 className="font-medium text-green-900 mb-2">Indicadores Calculados</h4>
+                <div className="grid md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Número estimado de famílias:</span>
+                    <span className="ml-2 font-medium">{Math.round(parseFloat(formData.populacaoTotal) / 3.2).toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">SOM estimado (24 meses):</span>
+                    <span className="ml-2 font-medium text-green-600">{results.som} unidades</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+        
+      case 'competitiva':
+        return (
+          <div className="space-y-6">
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <div className="flex items-start space-x-3">
+                <Info className="w-5 h-5 text-yellow-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-yellow-900">Análise Competitiva</h4>
+                  <p className="text-sm text-yellow-700">Mapeie empreendimentos similares lançados nos últimos 2 anos</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium">Concorrentes Mapeados</h3>
+              <button
+                onClick={addConcorrente}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                + Adicionar Concorrente
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {formData.concorrentes.map((concorrente, index) => (
+                <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                  <div className="flex justify-between items-start mb-3">
+                    <h4 className="font-medium">Concorrente {index + 1}</h4>
+                    <button
+                      onClick={() => removeConcorrente(index)}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      Remover
+                    </button>
+                  </div>
+                  
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Nome do Empreendimento</label>
+                      <input
+                        type="text"
+                        value={concorrente.nome}
+                        onChange={(e) => updateConcorrente(index, 'nome', e.target.value)}
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ex: Residencial Aurora"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Preço (R$)</label>
+                      <input
+                        type="number"
+                        value={concorrente.preco}
+                        onChange={(e) => updateConcorrente(index, 'preco', e.target.value)}
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ex: 190000"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Metragem (m²)</label>
+                      <input
+                        type="number"
+                        value={concorrente.metragem}
+                        onChange={(e) => updateConcorrente(index, 'metragem', e.target.value)}
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ex: 45"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Localização</label>
+                      <input
+                        type="text"
+                        value={concorrente.localizacao}
+                        onChange={(e) => updateConcorrente(index, 'localizacao', e.target.value)}
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ex: Bairro Centro"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Principal Diferencial</label>
+                      <input
+                        type="text"
+                        value={concorrente.diferencial}
+                        onChange={(e) => updateConcorrente(index, 'diferencial', e.target.value)}
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ex: Academia, Piscina"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1">VSO (un/mês)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={concorrente.vso}
+                        onChange={(e) => updateConcorrente(index, 'vso', e.target.value)}
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ex: 25"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {formData.concorrentes.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <TrendingUp className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>Adicione concorrentes para análise comparativa</p>
+                </div>
+              )}
+            </div>
+            
+            {formData.concorrentes.length > 0 && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">Resumo Competitivo</h4>
+                <div className="grid md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Preço médio:</span>
+                    <span className="ml-2 font-medium">
+                      R$ {(formData.concorrentes.reduce((acc, comp) => acc + (parseFloat(comp.preco) || 0), 0) / formData.concorrentes.length).toLocaleString('pt-BR')}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Metragem média:</span>
+                    <span className="ml-2 font-medium">
+                      {(formData.concorrentes.reduce((acc, comp) => acc + (parseFloat(comp.metragem) || 0), 0) / formData.concorrentes.length).toFixed(0)}m²
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">VSO médio:</span>
+                    <span className="ml-2 font-medium">
+                      {(formData.concorrentes.reduce((acc, comp) => acc + (parseFloat(comp.vso) || 0), 0) / formData.concorrentes.length).toFixed(1)} un/mês
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+        
+      case 'financeira':
+        return (
+          <div className="space-y-6">
+            <div className="bg-green-50 p-4 rounded-lg">
+              <div className="flex items-start space-x-3">
+                <Info className="w-5 h-5 text-green-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-green-900">Estrutura de Custos</h4>
+                  <p className="text-sm text-green-700">Calcule todos os custos para definir o preço mínimo viável</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium mb-2">Custo do Terreno (R$/m² construído)</label>
+                <input
+                  type="number"
+                  value={formData.custoTerreno}
+                  onChange={(e) => updateFormData('custoTerreno', e.target.value)}
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: 250"
+                />
+                <p className="text-xs text-gray-500 mt-1">Incluir custo de oportunidade e despesas cartoriais</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Custo de Construção (R$/m²)</label>
+                <input
+                  type="number"
+                  value={formData.custoConstrucao}
+                  onChange={(e) => updateFormData('custoConstrucao', e.target.value)}
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: 1200"
+                />
+                <p className="text-xs text-gray-500 mt-1">CUB + margem de segurança de obras</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Custos Indiretos (R$/m²)</label>
+                <input
+                  type="number"
+                  value={formData.custosIndiretos}
+                  onChange={(e) => updateFormData('custosIndiretos', e.target.value)}
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: 200"
+                />
+                <p className="text-xs text-gray-500 mt-1">Projetos, aprovações, marketing, vendas, administração</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Margem Desejada (%)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={formData.margemDesejada}
+                  onChange={(e) => updateFormData('margemDesejada', e.target.value)}
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: 25"
+                />
+                <p className="text-xs text-gray-500 mt-1">Margem líquida após impostos e financeiro</p>
+              </div>
+            </div>
+            
+            {formData.custoTerreno && formData.custoConstrucao && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-medium mb-3">Análise de Custos</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Custo Total Direto:</span>
+                    <span className="font-medium">
+                      R$ {((parseFloat(formData.custoTerreno) || 0) + 
+                           (parseFloat(formData.custoConstrucao) || 0) + 
+                           (parseFloat(formData.custosIndiretos) || 0)).toLocaleString('pt-BR')}/m²
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-red-600">
+                    <span>Preço Mínimo (com margem):</span>
+                    <span className="font-medium">R$ {results.precoMinimo.toLocaleString('pt-BR')}/m²</span>
+                  </div>
+                  <div className="flex justify-between text-yellow-600">
+                    <span>Margem de Segurança:</span>
+                    <span className="font-medium">10% sobre margem desejada</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <h4 className="font-medium text-yellow-900 mb-2">⚠️ Pontos de Atenção</h4>
+              <ul className="text-sm text-yellow-700 space-y-1">
+                <li>• Considere variação do CUB durante a obra (+5-10%)</li>
+                <li>• Reserve capital de giro para 6-12 meses</li>
+                <li>• Avalie impacto de distratos na margem final</li>
+                <li>• Custos financeiros do cronograma de recebimento</li>
+              </ul>
+            </div>
+          </div>
+        );
+        
+      case 'pesquisa':
+        return (
+          <div className="space-y-6">
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <div className="flex items-start space-x-3">
+                <Info className="w-5 h-5 text-purple-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-purple-900">Pesquisa de Intenção de Compra</h4>
+                  <p className="text-sm text-purple-700">Valide a sensibilidade ao preço do público-alvo</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="font-medium text-blue-900 mb-2">📋 Como Conduzir a Pesquisa</h4>
+              <div className="text-sm text-blue-700 space-y-2">
+                <p><strong>Pergunta-chave:</strong> "Para uma família com renda de R$ X, qual seria o valor máximo que pagaria por um apartamento de XXm² no bairro Y, considerando financiamento MCMV?"</p>
+                <p><strong>Canais sugeridos:</strong> Stands de vendas, redes sociais, pesquisa telefônica, eventos imobiliários</p>
+                <p><strong>Amostra mínima:</strong> 200+ pessoas da faixa de renda MCMV</p>
+              </div>
+            </div>
+            
+            <div className="grid md:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm font-medium mb-2">Preço Ideal (R$)</label>
+                <input
+                  type="number"
+                  value={formData.precoIdeal}
+                  onChange={(e) => updateFormData('precoIdeal', e.target.value)}
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: 180000"
+                />
+                <p className="text-xs text-gray-500 mt-1">Preço mais citado na pesquisa</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Preço Máximo Aceitável (R$)</label>
+                <input
+                  type="number"
+                  value={formData.precoMaximo}
+                  onChange={(e) => updateFormData('precoMaximo', e.target.value)}
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: 220000"
+                />
+                <p className="text-xs text-gray-500 mt-1">Limite superior de aceitação</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Preço Suspeito (R$)</label>
+                <input
+                  type="number"
+                  value={formData.precoSuspeito}
+                  onChange={(e) => updateFormData('precoSuspeito', e.target.value)}
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: 150000"
+                />
+                <p className="text-xs text-gray-500 mt-1">Preço considerado "muito barato"</p>
+              </div>
+            </div>
+            
+            {formData.precoIdeal && formData.precoMaximo && (
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h4 className="font-medium text-green-900 mb-2">Análise de Sensibilidade</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Faixa de Preço Aceitável:</span>
+                    <span className="font-medium">
+                      R$ {parseFloat(formData.precoIdeal).toLocaleString('pt-BR')} - R$ {parseFloat(formData.precoMaximo).toLocaleString('pt-BR')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Elasticidade Estimada:</span>
+                    <span className="font-medium">
+                      {(((parseFloat(formData.precoMaximo) - parseFloat(formData.precoIdeal)) / parseFloat(formData.precoIdeal)) * 100).toFixed(1)}% de variação
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Sweet Spot Recomendado:</span>
+                    <span className="font-medium text-green-600">
+                      R$ {((parseFloat(formData.precoIdeal) + parseFloat(formData.precoMaximo)) / 2).toLocaleString('pt-BR')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="bg-orange-50 p-4 rounded-lg">
+              <h4 className="font-medium text-orange-900 mb-2">🎯 Dicas para Validação</h4>
+              <ul className="text-sm text-orange-700 space-y-1">
+                <li>• Compare resultados com análise competitiva</li>
+                <li>• Teste diferentes perfis de renda na mesma pesquisa</li>
+                <li>• Valide diferencial de preço por localização</li>
+                <li>• Considere sazonalidade na pesquisa (evitar dezembro/janeiro)</li>
+              </ul>
+            </div>
+          </div>
+        );
+        
+      case 'estrategia':
+        return (
+          <div className="space-y-6">
+            <div className="bg-indigo-50 p-4 rounded-lg">
+              <div className="flex items-start space-x-3">
+                <Info className="w-5 h-5 text-indigo-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-indigo-900">Estratégia de Precificação</h4>
+                  <p className="text-sm text-indigo-700">Escolha a abordagem mais adequada para seu projeto</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                <label className="flex items-start space-x-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="estrategia"
+                    value="valor"
+                    checked={formData.estrategia === 'valor'}
+                    onChange={(e) => updateFormData('estrategia', e.target.value)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <h4 className="font-medium text-green-700">Precificação por Valor</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Preço baseado no valor percebido pelos clientes. Ideal quando você tem diferenciais únicos e superiores à concorrência.
+                    </p>
+                    <div className="text-xs text-green-600 mt-2">
+                      <strong>Quando usar:</strong> Localização premium, acabamentos superiores, infraestrutura diferenciada
+                    </div>
+                  </div>
+                </label>
+              </div>
+              
+              <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                <label className="flex items-start space-x-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="estrategia"
+                    value="competitiva"
+                    checked={formData.estrategia === 'competitiva'}
+                    onChange={(e) => updateFormData('estrategia', e.target.value)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <h4 className="font-medium text-blue-700">Precificação Competitiva</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Preço similar ao mercado, competindo em outros fatores como prazo de entrega, facilidade de aprovação ou atendimento.
+                    </p>
+                    <div className="text-xs text-blue-600 mt-2">
+                      <strong>Quando usar:</strong> Mercado estabelecido, produto similar aos concorrentes, foco na execução
+                    </div>
+                  </div>
+                </label>
+              </div>
+              
+              <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                <label className="flex items-start space-x-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="estrategia"
+                    value="penetracao"
+                    checked={formData.estrategia === 'penetracao'}
+                    onChange={(e) => updateFormData('estrategia', e.target.value)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <h4 className="font-medium text-orange-700">Precificação de Penetração</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Preço abaixo do mercado para ganhar participação rapidamente. Estratégia de volume com margem reduzida.
+                    </p>
+                    <div className="text-xs text-orange-600 mt-2">
+                      <strong>Quando usar:</strong> Entrada em novo mercado, necessidade de VSO alta, concorrência forte
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Meta de VSO (% estoque/mês)</label>
+              <input
+                type="number"
+                step="0.1"
+                value={formData.vsoMeta}
+                onChange={(e) => updateFormData('vsoMeta', e.target.value)}
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Ex: 2.5"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Referência: Mercado normal 2-3%, aquecido 3-5%, fraco 1-2%
+              </p>
+            </div>
+            
+            {formData.estrategia && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-medium mb-2">Impactos da Estratégia Escolhida</h4>
+                <div className="text-sm space-y-1">
+                  {formData.estrategia === 'valor' && (
+                    <>
+                      <p className="text-green-600">✓ Maior margem de lucro</p>
+                      <p className="text-green-600">✓ Posicionamento premium</p>
+                      <p className="text-red-600">⚠ VSO mais baixa</p>
+                      <p className="text-red-600">⚠ Risco de estoque parado</p>
+                    </>
+                  )}
+                  {formData.estrategia === 'competitiva' && (
+                    <>
+                      <p className="text-blue-600">✓ Risco equilibrado</p>
+                      <p className="text-blue-600">✓ VSO previsível</p>
+                      <p className="text-yellow-600">⚠ Margem média</p>
+                      <p className="text-yellow-600">⚠ Dependente da execução</p>
+                    </>
+                  )}
+                  {formData.estrategia === 'penetracao' && (
+                    <>
+                      <p className="text-orange-600">✓ VSO alta</p>
+                      <p className="text-orange-600">✓ Rápida penetração</p>
+                      <p className="text-red-600">⚠ Margem reduzida</p>
+                      <p className="text-red-600">⚠ Pode prejudicar brand</p>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+        
+      case 'resultados':
+        return (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-lg">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">📊 Análise Final e Recomendações</h3>
+            </div>
+            
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="bg-white border rounded-lg p-4">
+                <h4 className="font-medium mb-3 text-gray-700">Indicadores de Demanda</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>SOM (24 meses):</span>
+                    <span className="font-medium">{results.som} unidades</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Famílias elegíveis:</span>
+                    <span className="font-medium">
+                      {((parseFloat(formData.familiasFaixa1) || 0) + 
+                        (parseFloat(formData.familiasFaixa2) || 0) + 
+                        (parseFloat(formData.familiasFaixa3) || 0)).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white border rounded-lg p-4">
+                <h4 className="font-medium mb-3 text-gray-700">Análise Competitiva</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Concorrentes mapeados:</span>
+                    <span className="font-medium">{formData.concorrentes.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Preço médio mercado:</span>
+                    <span className="font-medium">
+                      R$ {formData.concorrentes.length > 0 ? 
+                        (formData.concorrentes.reduce((acc, comp) => acc + (parseFloat(comp.preco) || 0), 0) / formData.concorrentes.length).toLocaleString('pt-BR') : 
+                        '0'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-green-500 to-blue-500 text-white p-6 rounded-lg">
+              <h4 className="text-lg font-bold mb-4">🎯 Recomendação de Preço</h4>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="bg-white bg-opacity-20 rounded p-3">
+                  <div className="text-sm opacity-90">Preço Mínimo</div>
+                  <div className="text-xl font-bold">R$ {results.precoMinimo.toLocaleString('pt-BR')}</div>
+                  <div className="text-xs opacity-75">Limite para viabilidade</div>
+                </div>
+                <div className="bg-white bg-opacity-30 rounded p-3">
+                  <div className="text-sm opacity-90">Preço Sugerido</div>
+                  <div className="text-2xl font-bold">R$ {results.precoSugerido.toLocaleString('pt-BR')}</div>
+                  <div className="text-xs opacity-75">Baseado na estratégia</div>
+                </div>
+                <div className="bg-white bg-opacity-20 rounded p-3">
+                  <div className="text-sm opacity-90">Margem Final</div>
+                  <div className="text-xl font-bold">{results.margemFinal}%</div>
+                  <div className="text-xs opacity-75">Lucro líquido estimado</div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-3">📈 Projeção de Performance</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>VSO Projetada:</span>
+                    <span className="font-medium">{results.vsoProjetada}% ao mês</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Tempo de vendas (100 un):</span>
+                    <span className="font-medium">{(100 / results.vsoProjetada).toFixed(0)} meses</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Status VSO:</span>
+                    <span className={`font-medium ${results.vsoProjetada >= 2.5 ? 'text-green-600' : 'text-red-600'}`}>
+                      {results.vsoProjetada >= 3 ? 'Excelente' : results.vsoProjetada >= 2.5 ? 'Boa' : 'Baixa'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <h4 className="font-medium text-yellow-900 mb-3">⚠️ Validações Críticas</h4>
+                <div className="space-y-1 text-sm">
+                  <div className={`flex items-center space-x-2 ${results.som >= 50 ? 'text-green-600' : 'text-red-600'}`}>
+                    {results.som >= 50 ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                    <span>SOM vs Demanda {results.som >= 50 ? '✓' : '✗'}</span>
+                  </div>
+                  <div className={`flex items-center space-x-2 ${results.margemFinal >= 20 ? 'text-green-600' : 'text-red-600'}`}>
+                    {results.margemFinal >= 20 ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                    <span>Margem Mínima {results.margemFinal >= 20 ? '✓' : '✗'}</span>
+                  </div>
+                  <div className={`flex items-center space-x-2 ${results.vsoProjetada >= 2 ? 'text-green-600' : 'text-red-600'}`}>
+                    {results.vsoProjetada >= 2 ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                    <span>VSO Viável {results.vsoProjetada >= 2 ? '✓' : '✗'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-medium mb-3">🎯 Próximos Passos</h4>
+              <div className="grid md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <h5 className="font-medium text-gray-700 mb-2">Implementação:</h5>
+                  <ul className="space-y-1 text-gray-600">
+                    <li>• Validar preço com equipe comercial</li>
+                    <li>• Testar em pré-lançamento limitado</li>
+                    <li>• Preparar argumentação de vendas</li>
+                    <li>• Definir estratégia de lançamento</li>
+                  </ul>
+                </div>
+                <div>
+                  <h5 className="font-medium text-gray-700 mb-2">Monitoramento:</h5>
+                  <ul className="space-y-1 text-gray-600">
+                    <li>• Acompanhar VSO semanal</li>
+                    <li>• Monitorar concorrência</li>
+                    <li>• Avaliar ajustes trimestrais</li>
+                    <li>• Medir satisfação dos clientes</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+              <div className="flex items-start space-x-3">
+                <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-green-900">Análise Concluída!</h4>
+                  <p className="text-sm text-green-700 mt-1">
+                    Seu framework de precificação está completo. Use as recomendações como base para a decisão final, 
+                    sempre considerando fatores específicos do seu projeto e mercado local.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+        
+      default:
+        return <div>Etapa não encontrada</div>;
+    }
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto p-6 bg-gray-50 min-h-screen">
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white p-6">
+          <h1 className="text-2xl font-bold mb-2">Framework Interativo de Precificação MCMV</h1>
+          <p className="opacity-90">Guia completo para definir o preço ideal do seu empreendimento</p>
+        </div>
+        
+        {/* Progress Bar */}
+        <div className="bg-gray-100 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-600">
+              Etapa {currentStep + 1} de {steps.length}
+            </span>
+            <span className="text-sm text-gray-600">
+              {Math.round(((currentStep + 1) / steps.length) * 100)}% completo
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-gradient-to-r from-blue-600 to-green-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+            ></div>
+          </div>
+        </div>
+        
+        {/* Steps Navigation */}
+        <div className="border-b bg-white p-4">
+          <div className="flex space-x-1 overflow-x-auto">
+            {steps.map((step, index) => {
+              const Icon = step.icon;
+              return (
+                <button
+                  key={step.id}
+                  onClick={() => setCurrentStep(index)}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                    currentStep === index
+                      ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
+                      : currentStep > index
+                      ? 'bg-green-100 text-green-700 hover:bg-green-150'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-150'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{step.title}</span>
+                  {currentStep > index && <CheckCircle className="w-4 h-4" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        
+        {/* Content */}
+        <div className="p-6">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-800 mb-2">
+              {steps[currentStep].title}
+            </h2>
+            <p className="text-gray-600">{steps[currentStep].description}</p>
+          </div>
+          
+          {renderStep()}
+        </div>
+        
+        {/* Navigation Buttons */}
+        <div className="bg-gray-50 px-6 py-4 flex justify-between">
+          <button
+            onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
+            disabled={currentStep === 0}
+            className="flex items-center space-x-2 px-4 py-2 text-gray-600 bg-white border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>Anterior</span>
+          </button>
+          
+          <button
+            onClick={() => setCurrentStep(Math.min(steps.length - 1, currentStep + 1))}
+            disabled={currentStep === steps.length - 1}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span>Próximo</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default MCMVPricingFramework;
