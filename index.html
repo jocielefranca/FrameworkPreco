@@ -313,6 +313,9 @@
             color: var(--danger);
             cursor: pointer;
             font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
         
         .empty-state {
@@ -608,7 +611,16 @@
                 familiasFaixa2: '',
                 familiasFaixa3: '',
                 deficitHabitacional: '',
-                concorrentes: [],
+                concorrentes: [
+                    {
+                        nome: 'MRV',
+                        preco: '215000',
+                        metragem: '42',
+                        localizacao: 'E',
+                        diferencial: 'Academia',
+                        vso: '30'
+                    }
+                ],
                 custoTerreno: '',
                 custoConstrucao: '',
                 custosIndiretos: '',
@@ -830,13 +842,13 @@
             `;
             
             // Adiciona event listeners
-            document.getElementById('populacaoTotal').addEventListener('input', saveFormData);
-            document.getElementById('taxaCrescimento').addEventListener('input', saveFormData);
-            document.getElementById('migracaoInterna').addEventListener('input', saveFormData);
-            document.getElementById('deficitHabitacional').addEventListener('input', saveFormData);
-            document.getElementById('familiasFaixa1').addEventListener('input', saveFormData);
-            document.getElementById('familiasFaixa2').addEventListener('input', saveFormData);
-            document.getElementById('familiasFaixa3').addEventListener('input', saveFormData);
+            document.getElementById('populacaoTotal').addEventListener('change', saveFormData);
+            document.getElementById('taxaCrescimento').addEventListener('change', saveFormData);
+            document.getElementById('migracaoInterna').addEventListener('change', saveFormData);
+            document.getElementById('deficitHabitacional').addEventListener('change', saveFormData);
+            document.getElementById('familiasFaixa1').addEventListener('change', saveFormData);
+            document.getElementById('familiasFaixa2').addEventListener('change', saveFormData);
+            document.getElementById('familiasFaixa3').addEventListener('change', saveFormData);
         }
 
         function renderCompetitiva() {
@@ -861,7 +873,7 @@
                 
                 <div class="concorrentes-container" id="concorrentes-container">
                     ${appData.formData.concorrentes.map((concorrente, index) => `
-                        <div class="concorrente-box">
+                        <div class="concorrente-box" id="concorrente-${index}">
                             <div class="flex justify-between">
                                 <h4>Concorrente ${index + 1}</h4>
                                 <button class="btn-remove" data-index="${index}">
@@ -930,7 +942,7 @@
                 </div>
                 
                 ${appData.formData.concorrentes.length > 0 ? `
-                <div class="info-box blue">
+                <div class="info-box blue" id="resumo-competitivo">
                     <h4>Resumo Competitivo</h4>
                     <div class="grid-cols-3">
                         <div>
@@ -960,23 +972,24 @@
                     diferencial: '',
                     vso: ''
                 });
-                renderCurrentStep();
+                renderCompetitiva();
             });
             
             document.querySelectorAll('.btn-remove').forEach(button => {
                 button.addEventListener('click', (e) => {
                     const index = parseInt(e.target.closest('.btn-remove').dataset.index);
                     appData.formData.concorrentes.splice(index, 1);
-                    renderCurrentStep();
+                    renderCompetitiva();
                 });
             });
             
+            // Atualização otimizada: não re-renderiza toda a seção ao digitar
             document.querySelectorAll('.concorrente-input').forEach(input => {
                 input.addEventListener('input', (e) => {
                     const index = parseInt(e.target.dataset.index);
                     const field = e.target.dataset.field;
                     appData.formData.concorrentes[index][field] = e.target.value;
-                    renderCurrentStep();
+                    // Não re-renderiza tudo, apenas atualiza o campo específico
                 });
             });
         }
@@ -1114,10 +1127,10 @@
             `;
             
             // Event listeners
-            document.getElementById('custoTerreno').addEventListener('input', saveFormData);
-            document.getElementById('custoConstrucao').addEventListener('input', saveFormData);
-            document.getElementById('custosIndiretos').addEventListener('input', saveFormData);
-            document.getElementById('margemDesejada').addEventListener('input', saveFormData);
+            document.getElementById('custoTerreno').addEventListener('change', saveFormData);
+            document.getElementById('custoConstrucao').addEventListener('change', saveFormData);
+            document.getElementById('custosIndiretos').addEventListener('change', saveFormData);
+            document.getElementById('margemDesejada').addEventListener('change', saveFormData);
         }
 
         function renderResultados() {
@@ -1323,9 +1336,9 @@
             `;
             
             // Event listeners
-            document.getElementById('precoIdeal').addEventListener('input', saveFormData);
-            document.getElementById('precoMaximo').addEventListener('input', saveFormData);
-            document.getElementById('precoSuspeito').addEventListener('input', saveFormData);
+            document.getElementById('precoIdeal').addEventListener('change', saveFormData);
+            document.getElementById('precoMaximo').addEventListener('change', saveFormData);
+            document.getElementById('precoSuspeito').addEventListener('change', saveFormData);
         }
 
         function renderEstrategia() {
@@ -1409,7 +1422,7 @@
                 });
             });
             
-            document.getElementById('vsoMeta').addEventListener('input', saveFormData);
+            document.getElementById('vsoMeta').addEventListener('change', saveFormData);
         }
     </script>
 </body>
